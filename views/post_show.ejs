@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <% if (typeof user === 'undefined') { var user = null; } %>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title><%= (post?.title || 'Post') %> — Mosaic</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-zinc-950 text-white min-h-screen flex flex-col">
+<header class="bg-zinc-900/80 backdrop-blur border-b border-zinc-800 sticky top-0 z-40">
+  <div class="max-w-6xl mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
+    <a href="/feed" class="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700">← Back to Feed</a>
+    <div class="flex items-center gap-2">
+      <% if (user) { %>
+        <a href="/logout" class="px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700">Logout</a>
+      <% } else { %>
+        <a href="/login" class="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700">Login</a>
+      <% } %>
+    </div>
+  </div>
+</header>
+
+<main class="flex-1">
+  <div class="max-w-3xl mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-6">
+
+    <!-- Post -->
+    <article id="post-<%= post._id %>" class="bg-zinc-900 rounded-2xl border border-zinc-800 overflow-hidden">
+      <div class="aspect-[16/9] bg-zinc-800">
+        <% if (post.imageUrl) { %>
+          <img src="<%= post.imageUrl %>" alt="" class="w-full h-full object-cover">
+        <% } %>
+      </div>
+
+      <div class="p-4 sm:p-6 space-y-3">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h1 class="text-xl sm:text-2xl font-bold leading-tight"><%= post.title || 'Untitled' %></h1>
+            <p class="text-xs text-zinc-500 mt-1">
+              <%= new Date(post.createdAt).toLocaleString() %> ·
+              by <a class="text-blue-400 hover:text-blue-300" href="/u/<%= post.userId?._id %>">
+                <%= post.userId?.username || post.userId?.email || 'User' %>
+              </a>
+            </p>
+          </div>
+          <div class="shrink-0 text-right">
+            <p class="text-sm text-zinc-400 flex items-center gap-1 justify-end">
+              <svg class="w-4 h-4 text-pink-400" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 21s-6.716-4.148-9.193-6.627A6.5 6.5 0 1 1 12 5.35a6.5 6.5 0 1 1 9.193 9.023C18.716 16.852 12 21 12 21z"/>
+              </svg>
+              Loves
+            </p>
+            <p class="font-semibold"><%= post.likesCount %></p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 pt-2">
+          <% if (user) { %>
+            <form method="post" action="/posts/<%= post._id %>/<%= post.likedByMe ? 'unlike' : 'like' %>">
+              <button class="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2
+                             <%= post.likedByMe ? 'bg-pink-600 hover:bg-pink-700' : 'bg-zinc-800 hover:bg-zinc-700 border border-zinc-700' %>">
+                <span><%= post.likedByMe ? '❤️' : '🤍' %></span>
+                <span><%= post.likedByMe ? 'Loved' : 'Love' %> (<%= post.likesCount %>)</span>
+              </button>
+            </form>
+
+            <% if (String(post.userId?._id) === String(user?._id) || user?.role === 'admin') { %>
+              <form method="post" action="/posts/<%= post._id %>/delete" onsubmit="return confirm('Delete this post?')">
+                <button class="px-4 py-2 rounded-lg text-sm bg-red-600 hover:bg-red-700">Delete</button>
+              </form>
+            <% } %>
+          <% } %>
+          <a href="/feed#post-<%= post._id %>" class="px-4 py-2 rounded-lg text-sm bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">Open in Feed</a>
+        </div>
+      </div>
+    </article>
+
+    <!-- Comments -->
+    <section class="bg-zinc-900 rounded-2xl border border-zinc-800">
+      <div class="px-4 sm:px-6 py-3 border-b border-zinc-800">
+        <h2 class="text-lg font-semibold">Comments <span class="text-zinc-500">(<%= (post.comments || []).length %>)</span></h2>
+      </div>
+
+      <div class="p-4 sm:p-6 space-y-4">
+        <% if (!(post.comments || []).length) { %>
+          <p class="text-sm text-zinc-500">No comments yet.</p>
+        <% } %>
+
+        <ul class="space-y-3">
+          <% (post.comments || []).slice().reverse().forEach(function(c){ %>
+            <li class="p-3 rounded-xl bg-zinc-900/50 border border-zinc-800">
+              <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 shrink-0 grid place-items-center">
+                  <% if (c.userId?.avatarUrl) { %>
+                    <img src="<%= c.userId.avatarUrl %>" class="w-full h-full object-cover" alt="">
+                  <% } else { %>
+                    <span class="text-sm font-bold"><%= (c.userId?.username || c.userId?.email || '?').charAt(0).toUpperCase() %></span>
+                  <% } %>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold">
+                    <%= c.userId?.username || c.userId?.email || 'User' %>
+                    <span class="text-xs text-zinc-500 ml-1"><%= new Date(c.createdAt || post.createdAt).toLocaleString() %></span>
+                  </p>
+                  <p class="text-sm text-zinc-200 whitespace-pre-wrap break-words"><%= c.text %></p>
+                </div>
+              </div>
+            </li>
+          <% }); %>
+        </ul>
+
+        <% if (user) { %>
+          <form method="post" action="/posts/<%= post._id %>/comments" class="space-y-2">
+            <label class="block text-sm font-medium text-zinc-300">Add a comment</label>
+            <textarea name="text" rows="3" maxlength="300" required
+                      class="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 outline-none focus:ring-2 focus:ring-blue-600"
+                      placeholder="Say something nice…"></textarea>
+            <div class="flex items-center justify-end">
+              <button class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700">Post Comment</button>
+            </div>
+          </form>
+        <% } else { %>
+          <p class="text-sm text-zinc-500">Please <a class="text-blue-400 hover:text-blue-300" href="/login">log in</a> to comment.</p>
+        <% } %>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer class="border-t border-zinc-900 mt-10">
+  <div class="max-w-6xl mx-auto px-3 sm:px-4 py-5 text-xs sm:text-sm text-zinc-500 text-center">
+    © <%= new Date().getFullYear() %> Mosaic. All rights reserved.
+  </div>
+</footer>
+</body>
+</html>
