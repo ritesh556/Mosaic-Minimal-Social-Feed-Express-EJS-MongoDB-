@@ -25,10 +25,7 @@ ChatSchema.pre('validate', function(next) {
   next();
 });
 
-// ❌ REMOVE this (it caused the bug):
-// ChatSchema.index({ participants: 1 }, { unique: true });
 
-// ✅ Use a compound unique index on the two fixed positions:
 ChatSchema.index(
   { 'participants.0': 1, 'participants.1': 1 },
   {
