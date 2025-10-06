@@ -1,0 +1,242 @@
+<!-- views/profile.ejs -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title><%= (profileUser.username || profileUser.email) %> · Profile — Mosaic</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-zinc-950 text-white min-h-screen">
+  <!-- Navbar -->
+  <header class="bg-zinc-900/95 backdrop-blur-md sticky top-0 z-40 border-b border-zinc-800">
+    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+      <a href="/" class="text-xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+        Mosaic
+      </a>
+      <nav class="flex items-center gap-3">
+        <% if (user) { %>
+          <a href="/feed" class="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl font-medium">Feed</a>
+          <a href="/dashboard" class="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl font-medium">Dashboard</a>
+          <a href="/logout" class="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl font-medium">Logout</a>
+        <% } else { %>
+          <a href="/login" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-xl font-medium">Login</a>
+          <a href="/register" class="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl font-medium">Register</a>
+        <% } %>
+      </nav>
+    </div>
+  </header>
+
+  <main class="min-h-screen">
+    <!-- Hero/Profile head -->
+    <section class="border-b border-zinc-800/50 bg-gradient-to-b from-zinc-900/50 to-transparent">
+      <div class="max-w-7xl mx-auto px-4 py-10">
+        <div class="flex items-center gap-4">
+          <div class="w-16 h-16 rounded-2xl overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 grid place-items-center ring-2 ring-zinc-700">
+            <% if (profileUser.avatarUrl) { %>
+              <img src="<%= profileUser.avatarUrl %>" alt="Avatar" class="w-full h-full object-cover">
+            <% } else { %>
+              <span class="text-lg font-bold text-white">
+                <%= (profileUser.username || profileUser.email || '?').trim().charAt(0).toUpperCase() %>
+              </span>
+            <% } %>
+          </div>
+
+          <div class="flex-1 min-w-0">
+            <h1 class="text-2xl md:text-3xl font-bold">
+              <%= profileUser.username || profileUser.email %>
+              <% if (profileUser.role === 'admin') { %>
+                <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-purple-600/20 text-purple-300 border border-purple-700 align-middle">ADMIN</span>
+              <% } %>
+            </h1>
+
+            <!-- Counts row -->
+            <div class="mt-2 flex flex-wrap items-center gap-3 text-sm text-zinc-400">
+              <span><span class="font-semibold text-white"><%= stats.postsCount %></span> Posts</span>
+              <span class="text-zinc-700">•</span>
+              <a href="/u/<%= profileUser._id %>/followers" class="hover:text-blue-300 transition">
+                <span class="font-semibold text-white"><%= stats.followersCount ?? 0 %></span> Followers
+              </a>
+              <span class="text-zinc-700">•</span>
+              <a href="/u/<%= profileUser._id %>/following" class="hover:text-blue-300 transition">
+                <span class="font-semibold text-white"><%= stats.followingCount ?? 0 %></span> Following
+              </a>
+            </div>
+          </div>
+
+          <!-- Follow / Unfollow (CSP-safe, no JS needed) -->
+          <% if (user && String(user._id) !== String(profileUser._id)) { %>
+            <!-- two tiny forms; the button uses the right one via form="" -->
+            <form id="followForm"   method="post" action="/u/<%= profileUser._id %>/follow"></form>
+            <form id="unfollowForm" method="post" action="/u/<%= profileUser._id %>/unfollow"></form>
+
+            <button
+              type="submit"
+              form="<%= isFollowing ? 'unfollowForm' : 'followForm' %>"
+              class="px-4 py-2 rounded-xl font-medium border border-zinc-700 hover:border-zinc-600 transition
+                     <%= isFollowing ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-blue-600 hover:bg-blue-700' %>">
+              <%= isFollowing ? 'Unfollow' : 'Follow' %>
+            </button>
+          <% } %>
+        </div>
+
+        <!-- Stats cards -->
+        <div class="mt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          <div class="bg-zinc-900 rounded-2xl border border-zinc-800 p-4 text-center">
+            <div class="text-2xl font-bold"><%= stats.postsCount %></div>
+            <div class="text-sm text-zinc-400">Posts</div>
+          </div>
+          <div class="bg-zinc-900 rounded-2xl border border-zinc-800 p-4 text-center">
+            <div class="text-2xl font-bold text-pink-400"><%= stats.totalLoves %></div>
+            <div class="text-sm text-zinc-400">Total Loves</div>
+          </div>
+          <a href="/u/<%= profileUser._id %>/followers" class="bg-zinc-900 rounded-2xl border border-zinc-800 p-4 text-center hover:border-zinc-700 transition">
+            <div class="text-2xl font-bold"><%= stats.followersCount ?? 0 %></div>
+            <div class="text-sm text-zinc-400">Followers</div>
+          </a>
+          <a href="/u/<%= profileUser._id %>/following" class="bg-zinc-900 rounded-2xl border border-zinc-800 p-4 text-center hover:border-zinc-700 transition">
+            <div class="text-2xl font-bold"><%= stats.followingCount ?? 0 %></div>
+            <div class="text-sm text-zinc-400">Following</div>
+          </a>
+        </div>
+
+        <!-- Followers preview rail -->
+        <% if (Array.isArray(followersPreview) && followersPreview.length) { %>
+          <div class="mt-6">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-semibold text-zinc-300">Followers</h3>
+              <a href="/u/<%= profileUser._id %>/followers" class="text-xs text-zinc-400 hover:text-blue-300">See all →</a>
+            </div>
+            <div class="flex gap-3 overflow-x-auto pb-2">
+              <% followersPreview.forEach(function(f){ %>
+                <a href="/u/<%= f._id %>" class="shrink-0 group">
+                  <div class="w-12 h-12 rounded-xl overflow-hidden bg-zinc-800 border border-zinc-700 group-hover:border-zinc-600 transition grid place-items-center">
+                    <% if (f.avatarUrl) { %>
+                      <img src="<%= f.avatarUrl %>" alt="" class="w-full h-full object-cover">
+                    <% } else { %>
+                      <span class="text-sm font-bold"><%= (f.username || f.email || '?').charAt(0).toUpperCase() %></span>
+                    <% } %>
+                  </div>
+                  <div class="w-16 mt-1 text-[11px] text-zinc-400 truncate text-center"><%= f.username || f.email %></div>
+                </a>
+              <% }) %>
+            </div>
+          </div>
+        <% } %>
+
+        <!-- Following preview rail -->
+        <% if (Array.isArray(followingPreview) && followingPreview.length) { %>
+          <div class="mt-4">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-semibold text-zinc-300">Following</h3>
+              <a href="/u/<%= profileUser._id %>/following" class="text-xs text-zinc-400 hover:text-blue-300">See all →</a>
+            </div>
+            <div class="flex gap-3 overflow-x-auto pb-2">
+              <% followingPreview.forEach(function(f){ %>
+                <a href="/u/<%= f._id %>" class="shrink-0 group">
+                  <div class="w-12 h-12 rounded-xl overflow-hidden bg-zinc-800 border border-zinc-700 group-hover:border-zinc-600 transition grid place-items-center">
+                    <% if (f.avatarUrl) { %>
+                      <img src="<%= f.avatarUrl %>" alt="" class="w-full h-full object-cover">
+                    <% } else { %>
+                      <span class="text-sm font-bold"><%= (f.username || f.email || '?').charAt(0).toUpperCase() %></span>
+                    <% } %>
+                  </div>
+                  <div class="w-16 mt-1 text-[11px] text-zinc-400 truncate text-center"><%= f.username || f.email %></div>
+                </a>
+              <% }) %>
+            </div>
+          </div>
+        <% } %>
+      </div>
+    </section>
+
+    <!-- Posts Grid -->
+    <section class="py-8">
+      <div class="max-w-7xl mx-auto px-4">
+        <% if (!posts || !posts.length) { %>
+          <div class="text-center py-20">
+            <div class="w-28 h-28 mx-auto mb-6 rounded-full bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center border border-zinc-700">
+              <svg class="w-12 h-12 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">No posts yet</h3>
+            <p class="text-zinc-400">When they post, you'll see them here.</p>
+          </div>
+        <% } else { %>
+          <div id="postsGrid" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <% posts.forEach((p, index) => { %>
+              <article class="group bg-zinc-900/80 backdrop-blur-sm rounded-2xl border border-zinc-800 hover:border-zinc-700 transition-all duration-300 cursor-pointer hover:shadow-2xl hover:shadow-blue-500/10 hover:-translate-y-1"
+                       data-open-post data-index="<%= index %>">
+                <div class="relative overflow-hidden rounded-t-2xl bg-zinc-900">
+                  <div class="aspect-square">
+                    <img src="<%= p.imageUrl %>" alt="<%= p.title %>"
+                         class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                         loading="lazy"/>
+                  </div>
+                  <div class="absolute top-3 right-3 bg-black/60 backdrop-blur-sm rounded-full px-2 py-1 flex items-center gap-1">
+                    <span class="text-pink-400">❤️</span>
+                    <span class="text-white text-sm font-medium"><%= p.likesCount %></span>
+                  </div>
+                </div>
+                <div class="p-4">
+                  <h3 class="text-lg font-semibold leading-tight mb-2 group-hover:text-blue-300 transition-colors line-clamp-2"><%= p.title %></h3>
+                  <div class="text-xs text-zinc-500"><%= new Date(p.createdAt).toLocaleDateString() %></div>
+                </div>
+              </article>
+            <% }) %>
+          </div>
+        <% } %>
+      </div>
+    </section>
+  </main>
+
+  <!-- Shared Modal (reused by indexpreview.js) -->
+  <div id="postModal" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+    <div class="bg-zinc-900 rounded-2xl max-w-5xl max-h-[95vh] w-full overflow-hidden border border-zinc-700 transform scale-95 transition-all duration-300" id="modalContent"></div>
+  </div>
+
+  <footer class="border-t border-zinc-800 bg-zinc-900/50 backdrop-blur-sm mt-16">
+    <div class="max-w-7xl mx-auto px-4 py-8 text-sm text-zinc-500 text-center">
+      © <%= new Date().getFullYear() %> Mosaic. All rights reserved.
+    </div>
+  </footer>
+
+  <!-- JSON payloads (safe under CSP) -->
+  <script id="posts-data" type="application/json">
+    <%- JSON.stringify(posts.map(p => ({
+      id: String(p._id),
+      title: p.title,
+      imageUrl: p.imageUrl,
+      createdAt: new Date(p.createdAt).toISOString(),
+      likesCount: p.likesCount,
+      likedByMe: !!p.likedByMe,
+      userId: {
+        _id: p.userId?._id || '',
+        username: p.userId?.username || p.userId?.email || 'Unknown User',
+        avatarUrl: p.userId?.avatarUrl || '',
+        role: p.userId?.role || ''
+      }
+    }))) %>
+  </script>
+
+  <script id="viewer-data" type="application/json">
+    <%- JSON.stringify({
+      isLoggedIn: !!user,
+      userId: user?._id || null,
+      role: user?.role || null
+    }) %>
+  </script>
+
+  <script id="feed-flags" type="application/json">
+    <%- JSON.stringify({
+      isLoggedIn: !!user,
+      currentUserId: user?._id || '',
+      isAdmin: !!(user && user.role === 'admin')
+    }) %>
+  </script>
+
+  <!-- External only; no inline JS -->
+  <script src="/scripts/indexpreview.js" defer></script>
+</body>
+</html>

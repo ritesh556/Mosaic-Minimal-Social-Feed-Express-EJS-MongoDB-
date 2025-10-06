@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title><%= (profileUser.username || profileUser.email) %> — Following · Mosaic</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-zinc-950 text-white min-h-screen">
+  <%
+var profileUser = (typeof profileUser !== 'undefined' && profileUser) ? profileUser : {};
+var list = (typeof list !== 'undefined' && Array.isArray(list)) ? list : [];
+const nameSafe = profileUser.username || profileUser.email || 'User';
+  %>
+
+  <!-- Navbar -->
+  <header class="bg-zinc-900/95 backdrop-blur-md sticky top-0 z-40 border-b border-zinc-800">
+    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+      <a href="/" class="text-xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+        Mosaic
+      </a>
+      <nav class="flex items-center gap-3">
+        <% if (user) { %>
+          <a href="/feed" class="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl font-medium">Feed</a>
+          <a href="/dashboard" class="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl font-medium">Dashboard</a>
+          <a href="/logout" class="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl font-medium">Logout</a>
+        <% } else { %>
+          <a href="/login" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-xl font-medium">Login</a>
+          <a href="/register" class="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl font-medium">Register</a>
+        <% } %>
+      </nav>
+    </div>
+  </header>
+
+  <main class="min-h-screen">
+    <section class="border-b border-zinc-800/50 bg-gradient-to-b from-zinc-900/50 to-transparent">
+      <div class="max-w-7xl mx-auto px-4 py-10">
+        <div class="flex items-center gap-4">
+          <a href="/u/<%= profileUser._id %>" class="w-14 h-14 rounded-2xl overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 grid place-items-center ring-2 ring-zinc-700">
+            <% if (profileUser.avatarUrl) { %>
+              <img src="<%= profileUser.avatarUrl %>" alt="" class="w-full h-full object-cover">
+            <% } else { %>
+              <span class="text-lg font-bold text-white"><%= nameSafe.charAt(0).toUpperCase() %></span>
+            <% } %>
+          </a>
+          <div class="flex-1">
+            <h1 class="text-2xl md:text-3xl font-bold">
+              <a href="/u/<%= profileUser._id %>" class="hover:text-blue-300 transition"><%= nameSafe %></a>
+              <span class="text-zinc-500 text-lg font-normal">/ Following</span>
+            </h1>
+            <div class="mt-2 flex items-center gap-2 text-sm">
+              <a href="/u/<%= profileUser._id %>/followers" class="px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 hover:border-zinc-700">Followers</a>
+              <a href="/u/<%= profileUser._id %>/following" class="px-3 py-1 rounded-full bg-zinc-800 border border-zinc-700 text-white">Following</a>
+            </div>
+          </div>
+          <a href="/u/<%= profileUser._id %>" class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 font-medium">Back to profile</a>
+        </div>
+
+        <!-- Search -->
+        <div class="mt-6">
+          <div class="relative max-w-md">
+            <input id="searchInput" type="text" placeholder="Search following..."
+                   class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 outline-none focus:border-zinc-600"
+            />
+            <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-4.35-4.35M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14z"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="py-8">
+      <div class="max-w-7xl mx-auto px-4">
+        <% if (!list.length) { %>
+          <div class="text-center py-20">
+            <div class="w-28 h-28 mx-auto mb-6 rounded-full bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center border border-zinc-700">
+              <svg class="w-12 h-12 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 15a7 7 0 1 1 8 0M12 12v.01"/>
+              </svg>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">Not following anyone yet</h3>
+            <p class="text-zinc-400"><%= nameSafe %>’s following list will appear here.</p>
+          </div>
+        <% } else { %>
+          <ul id="peopleList" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <% list.forEach(function(u){ %>
+              <li class="group bg-zinc-900/80 backdrop-blur-sm rounded-2xl border border-zinc-800 hover:border-zinc-700 transition">
+                <a href="/u/<%= u._id %>" class="flex items-center gap-3 p-4">
+                  <div class="w-12 h-12 rounded-xl overflow-hidden bg-zinc-800 border border-zinc-700 grid place-items-center">
+                    <% if (u.avatarUrl) { %>
+                      <img src="<%= u.avatarUrl %>" alt="" class="w-full h-full object-cover">
+                    <% } else { %>
+                      <span class="text-sm font-bold"><%= (u.username || u.email || '?').charAt(0).toUpperCase() %></span>
+                    <% } %>
+                  </div>
+                  <div class="min-w-0">
+                    <div class="font-semibold truncate"><%= u.username || u.email %></div>
+                    <div class="text-xs text-zinc-500 truncate"><%= u.email || '' %></div>
+                  </div>
+                </a>
+              </li>
+            <% }) %>
+          </ul>
+        <% } %>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-zinc-800 bg-zinc-900/50 backdrop-blur-sm mt-16">
+    <div class="max-w-7xl mx-auto px-4 py-8 text-sm text-zinc-500 text-center">
+      © <%= new Date().getFullYear() %> Mosaic. All rights reserved.
+    </div>
+  </footer>
+
+  <script>
+    // Simple client-side filter
+    (function(){
+      const input = document.getElementById('searchInput');
+      const list = document.getElementById('peopleList');
+      if (!input || !list) return;
+
+      input.addEventListener('input', () => {
+        const q = input.value.trim().toLowerCase();
+        const items = list.querySelectorAll('li');
+        items.forEach(li => {
+          const text = (li.textContent || '').toLowerCase();
+          li.style.display = text.includes(q) ? '' : 'none';
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

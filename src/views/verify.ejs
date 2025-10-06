@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Verify Login</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-zinc-900 text-zinc-50 min-h-screen flex items-center justify-center">
+  <div class="bg-zinc-800/90 backdrop-blur p-8 rounded-2xl shadow-2xl w-[420px] border border-zinc-700">
+    <div class="mb-6 text-center">
+      <h1 class="text-2xl font-semibold">Check your email</h1>
+      <p class="mt-1 text-sm text-zinc-300">Enter the 6-digit code to finish signing in</p>
+    </div>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+      <p class="text-red-400 bg-red-950/30 border border-red-900 rounded-md px-3 py-2 mb-4 text-center">
+        <%= error %>
+      </p>
+    <% } %>
+
+    <% if (typeof message !== 'undefined' && message) { %>
+      <p class="text-green-400 bg-green-950/30 border border-green-900 rounded-md px-3 py-2 mb-4 text-center">
+        <%= message %>
+      </p>
+    <% } %>
+
+    <form class="space-y-4" method="POST" action="/verify" id="verify-form">
+      <div>
+        <label class="block text-zinc-200 mb-2 text-sm">Verification Code</label>
+
+        <div class="flex justify-between gap-2" id="otp-wrapper">
+          <% for (var i = 0; i < 6; i++) { %>
+            <input
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              maxlength="1"
+              class="w-12 h-12 text-center text-xl rounded-lg bg-zinc-900 text-zinc-100 border border-zinc-700 outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-zinc-600"
+              data-otp-index="<%= i %>"
+              aria-label="Digit <%= i+1 %>" />
+          <% } %>
+        </div>
+
+        <input type="hidden" name="code" id="code-hidden" />
+
+        <p class="text-xs text-zinc-400 mt-2 flex items-center justify-between">
+          <span id="expires-text">The code expires in <span id="expiry-eta">10:00</span>.</span>
+          <span id="resend-eta" class="hidden">Resend available in <span id="resend-count">30</span>s</span>
+        </p>
+      </div>
+
+      <button type="submit"
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-400/30">
+        Verify & Login
+      </button>
+    </form>
+
+    <form method="POST" action="/resend-otp" class="mt-4 text-center" id="resend-form">
+      <button id="resend-btn" type="submit" class="text-sm text-blue-400 hover:underline disabled:opacity-50" disabled>
+        Resend code
+      </button>
+    </form>
+
+    <p class="text-zinc-400 text-center mt-6 text-xs">
+      Not you? <a href="/login" class="text-blue-400 hover:underline">Go back to login</a>
+    </p>
+  </div>
+
+  <script src="/scripts/verify.js" defer></script>
+</body>
+</html>

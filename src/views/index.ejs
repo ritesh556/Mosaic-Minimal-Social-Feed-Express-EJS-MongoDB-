@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mosaic — Feed</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Tailwind via CDN (zero-build setup) -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-zinc-950 text-white min-h-screen">
+
+<!-- NAVBAR (mobile-first) -->
+<header class="bg-zinc-900/95 backdrop-blur-md sticky top-0 z-40 border-b border-zinc-800">
+  <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+    <a href="/" class="text-xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+      Mosaic
+    </a>
+
+    <!-- Desktop nav -->
+    <nav class="hidden sm:flex items-center gap-3">
+      <% if (user) { %>
+        <!-- Profile link -->
+        <a href="/u/<%= user._id %>" class="hidden md:flex items-center gap-3 px-3 py-2 rounded-xl bg-zinc-800/50 hover:bg-zinc-700 transition">
+          <div class="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 grid place-items-center">
+            <% if (user.avatarUrl) { %>
+              <img src="<%= user.avatarUrl %>" alt="Me" class="w-full h-full object-cover" onerror="this.style.display='none'">
+            <% } else { %>
+              <span class="text-xs font-semibold text-white">
+                <%= (user.username || user.email || '?').trim().charAt(0).toUpperCase() %>
+              </span>
+            <% } %>
+          </div>
+          <span class="hidden lg:inline text-sm font-medium truncate max-w-[14rem]">
+            <%= user.username || user.email %>
+          </span>
+        </a>
+
+        <a href="/posts/new" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-xl font-medium transition-all hover:scale-105">New Post</a>
+        <a href="/dashboard" class="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl font-medium transition-all">Dashboard</a>
+        <a href="/logout" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl font-medium transition-all">Logout</a>
+      <% } else { %>
+        <a href="/login" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-xl font-medium transition-all">Login</a>
+        <a href="/register" class="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl font-medium transition-all">Register</a>
+      <% } %>
+    </nav>
+
+    <!-- Mobile menu button -->
+    <button class="sm:hidden p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700" id="menuBtn" aria-label="Open menu">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Mobile drawer -->
+  <div id="mobileMenu" class="sm:hidden hidden border-t border-zinc-800">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-2">
+      <% if (user) { %>
+        <a href="/u/<%= user._id %>" class="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700">Profile</a>
+        <a href="/posts/new" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 font-medium">New Post</a>
+        <a href="/dashboard" class="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700">Dashboard</a>
+        <a href="/logout" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 font-medium">Logout</a>
+      <% } else { %>
+        <a href="/login" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 font-medium">Login</a>
+        <a href="/register" class="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700">Register</a>
+      <% } %>
+    </div>
+  </div>
+</header>
+
+
+  <!-- HERO -->
+  <main class="min-h-screen">
+    <section class="border-b border-zinc-800/50 bg-gradient-to-b from-zinc-900/50 to-transparent">
+      <div class="max-w-6xl mx-auto px-4 py-12 text-center">
+        <h1 class="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white via-blue-100 to-purple-100 bg-clip-text text-transparent">
+          Discover Amazing Moments
+        </h1>
+        <p class="text-zinc-400 text-lg max-w-2xl mx-auto">
+          Share your world and explore incredible stories from our community. Click any post image to view it in full.
+        </p>
+      </div>
+    </section>
+
+    <!-- FEED -->
+    <section class="py-8">
+      <div class="max-w-4xl mx-auto px-4 space-y-6">
+
+        <% if (!posts || !posts.length) { %>
+          <div class="text-center py-16">
+            <div class="w-24 h-24 mx-auto mb-6 rounded-full bg-zinc-800 flex items-center justify-center">
+              <svg class="w-12 h-12 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">No posts yet</h3>
+            <p class="text-zinc-400 mb-6">Be the first to share something amazing!</p>
+            <% if (user) { %>
+              <a href="/posts/new" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-xl font-medium transition-all">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Create First Post
+              </a>
+            <% } %>
+          </div>
+        <% } %>
+
+        <!-- Post cards -->
+        <% posts?.forEach((p, index) => { %>
+          <article id="post-<%= p._id %>" class="group bg-zinc-900/80 backdrop-blur-sm rounded-2xl border border-zinc-800 hover:border-zinc-700 transition-all duration-200 hover:shadow-2xl hover:shadow-blue-500/10">
+            <!-- Header -->
+            <div class="flex items-center gap-4 p-6 pb-4">
+              <div class="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 grid place-items-center ring-2 ring-zinc-700">
+                <a href="/u/<%= p.userId?._id %>" class="w-12 h-12 rounded-full overflow-hidden grid place-items-center">
+                  <% if (p.userId?.avatarUrl) { %>
+                    <img src="<%= p.userId.avatarUrl %>" alt="Avatar" class="w-full h-full object-cover" onerror="this.style.display='none'">
+                  <% } else { %>
+                    <span class="text-sm font-bold text-white">
+                      <%= (p.userId?.username || p.userId?.email || '?').trim().charAt(0).toUpperCase() %>
+                    </span>
+                  <% } %>
+                </a>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <h3 class="font-semibold text-lg">
+                    <a href="/u/<%= p.userId?._id %>" class="hover:underline">
+                      <%= p.userId?.username || p.userId?.email || 'Unknown User' %>
+                    </a>
+                  </h3>
+                  <% if (p.userId?.role === 'admin') { %>
+                    <span class="px-2 py-0.5 text-xs rounded-full bg-purple-600/20 text-purple-300 border border-purple-700">ADMIN</span>
+                  <% } %>
+                </div>
+                <time class="text-sm text-zinc-400" datetime="<%= new Date(p.createdAt).toISOString() %>">
+                  <span data-timeago="<%= new Date(p.createdAt).toISOString() %>"></span>
+                </time>
+              </div>
+
+              <!-- Open in modal -->
+              <button class="opacity-60 hover:opacity-100 p-2 rounded-lg hover:bg-zinc-800"
+                      data-open-post data-id="<%= p._id %>" data-index="<%= index %>" title="Open">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Title -->
+            <div class="px-6 pb-4">
+              <h2 class="text-xl font-semibold leading-tight">
+                <a href="/posts/<%= p._id %>" class="hover:underline"><%= p.title %></a>
+              </h2>
+            </div>
+
+            <!-- Image (open modal) -->
+            <div class="relative overflow-hidden bg-zinc-900">
+              <button class="block w-full" data-open-post data-id="<%= p._id %>" data-index="<%= index %>" title="Open">
+                <img src="<%= p.imageUrl %>" alt="<%= p.title %>"
+                     class="w-full h-96 object-cover hover:scale-[1.02] transition-transform duration-500"
+                     loading="lazy" onerror="this.onerror=null; this.src='/placeholder.jpg';"/>
+              </button>
+            </div>
+
+            <!-- Actions -->
+            <div class="p-6 pt-4">
+              <div class="flex flex-wrap items-center gap-3 justify-between">
+                <div class="flex items-center gap-3">
+                  <% if (user) { %>
+                    <form method="post" action="/posts/<%= p._id %>/<%= p.likedByMe ? 'unlike' : 'like' %>">
+                      <button class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium <%= p.likedByMe ? 'bg-pink-600 hover:bg-pink-700' : 'bg-zinc-800 hover:bg-zinc-700' %>">
+                        <span><%= p.likedByMe ? '❤️' : '🤍' %></span>
+                        <span><%= p.likedByMe ? 'Loved' : 'Love' %></span>
+                      </button>
+                    </form>
+                  <% } %>
+
+                  <span class="flex items-center gap-2 text-zinc-400 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                    </svg>
+                    <strong><%= p.likesCount %></strong>
+                    <span class="hidden sm:inline">people loved this</span>
+                  </span>
+
+                  <!-- Comments toggle (on card) -->
+                  <button type="button" class="ml-2 px-3 py-1.5 rounded-lg text-sm bg-zinc-800 hover:bg-zinc-700"
+                          data-toggle-comments data-id="<%= p._id %>">
+                    💬 <span class="align-middle"><%= (p.comments && p.comments.length) || 0 %></span> Comments
+                  </button>
+
+                  <!-- Open page button -->
+                  <a href="/posts/<%= p._id %>" class="px-3 py-1.5 rounded-lg text-sm bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">
+                    Open page →
+                  </a>
+                </div>
+
+                <% if (!user) { %>
+                  <a href="/login" class="text-sm text-blue-400 hover:text-blue-300">Login to interact</a>
+                <% } %>
+
+                <% if (user && (String(p.userId?._id) === String(user._id) || user.role === 'admin')) { %>
+                  <form method="post" action="/posts/<%= p._id %>/delete" onsubmit="return confirm('Delete this post?')">
+                    <button class="px-4 py-2 rounded-xl text-sm bg-red-600 hover:bg-red-700 font-medium">
+                      <%= user.role === 'admin' ? 'Remove' : 'Delete' %>
+                    </button>
+                  </form>
+                <% } %>
+              </div>
+
+              <!-- COMMENTS PANEL (collapsible on card) -->
+              <div id="comments-<%= p._id %>" class="mt-5 hidden">
+                <% if (p.comments && p.comments.length) { %>
+                  <ul class="space-y-4">
+                    <% p.comments.slice().reverse().forEach(function(c){ %>
+                      <li class="flex items-start gap-3">
+                        <div class="w-8 h-8 shrink-0 rounded-full overflow-hidden bg-zinc-700 grid place-items-center">
+                          <% if (c.userId && c.userId.avatarUrl) { %>
+                            <img src="<%= c.userId.avatarUrl %>" alt="avatar" class="w-full h-full object-cover" onerror="this.style.display='none'">
+                          <% } else { %>
+                            <span class="text-xs font-semibold">
+                              <%= ((c.userId && (c.userId.username || c.userId.email)) || '?').toString().trim().charAt(0).toUpperCase() %>
+                            </span>
+                          <% } %>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                          <div class="flex items-center justify-between">
+                            <div class="text-sm font-medium truncate">
+                              <%= (c.userId && (c.userId.username || c.userId.email)) || 'User' %>
+                            </div>
+                            <div class="text-xs text-zinc-500">
+                              <span data-timeago="<%= new Date(c.createdAt).toISOString() %>"></span>
+                            </div>
+                          </div>
+                          <p class="mt-1 text-sm text-zinc-200 whitespace-pre-wrap break-words"><%= c.text %></p>
+                          <% if (user && (String(c.userId?._id) === String(user._id) || String(p.userId?._id) === String(user._id) || user.role === 'admin')) { %>
+                            <form method="post" action="/posts/<%= p._id %>/comments/<%= c._id %>/delete" class="mt-1">
+                              <button class="text-xs text-red-400 hover:text-red-300">Delete</button>
+                            </form>
+                          <% } %>
+                        </div>
+                      </li>
+                    <% }) %>
+                  </ul>
+                <% } else { %>
+                  <p class="text-sm text-zinc-400">No comments yet.</p>
+                <% } %>
+
+                <% if (user) { %>
+                  <form method="post" action="/posts/<%= p._id %>/comments" class="mt-4 flex gap-2">
+                    <input name="text" maxlength="300" placeholder="Write a comment…" required
+                           class="flex-1 px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 outline-none focus:ring-2 focus:ring-blue-600" />
+                    <button class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 font-medium">Comment</button>
+                  </form>
+                <% } else { %>
+                  <a href="/login" class="inline-block mt-3 text-sm text-blue-400 hover:underline">Log in to comment</a>
+                <% } %>
+              </div>
+            </div>
+          </article>
+        <% }) %>
+
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL (full-screen post view) -->
+  <div id="postModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+    <div class="bg-zinc-900 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden border border-zinc-700 transform scale-95 transition-all duration-300" id="modalContent"></div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-zinc-800 bg-zinc-900/50 backdrop-blur-sm mt-12">
+    <div class="max-w-6xl mx-auto px-4 py-8 text-center">
+      <h3 class="text-lg font-semibold mb-2">Mosaic</h3>
+      <p class="text-zinc-400 text-sm mb-4">Share your moments, connect with others</p>
+      <p class="text-zinc-500 text-xs">© <%= new Date().getFullYear() %> Mosaic. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Viewer payload for JS -->
+  <script id="viewer-data" type="application/json">
+    <%- JSON.stringify({
+      isLoggedIn: !!user,
+      userId: user?._id || null,
+      role: user?.role || null
+    }) %>
+  </script>
+
+  <!-- Posts payload for JS -->
+  <script id="posts-data" type="application/json">
+  <%- JSON.stringify(posts.map(p => ({
+    id: String(p._id),
+    title: p.title,
+    imageUrl: p.imageUrl,
+    userId: {
+      _id: p.userId?._id || '',
+      username: p.userId?.username || p.userId?.email || 'Unknown User',
+      avatarUrl: p.userId?.avatarUrl || '',
+      role: p.userId?.role || ''
+    },
+    createdAt: new Date(p.createdAt).toISOString(),
+    likesCount: p.likesCount,
+    likedByMe: !!p.likedByMe,
+    comments: (p.comments || []).slice().reverse().map(c => ({
+      id: String(c._id),
+      text: c.text,
+      createdAt: c.createdAt,
+      user: {
+        id: c.userId?._id || '',
+        username: (c.userId && (c.userId.username || c.userId.email)) || 'User',
+        avatarUrl: (c.userId && c.userId.avatarUrl) || ''
+      }
+    }))
+  })), null, 0) %>
+  </script>
+
+  <!-- External JS -->
+  <script src="/scripts/indexpreview.js" defer></script>
+</body>
+</html>

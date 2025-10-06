@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <% if (typeof user === 'undefined') { var user = {}; } %>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title><%= (user.username || user.email || 'Dashboard') %> — Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+
+<%
+  if (!Array.isArray(myPosts)) myPosts = [];
+  if (!Array.isArray(followersPreview)) followersPreview = [];
+  if (!Array.isArray(followingPreview)) followingPreview = [];
+  if (typeof followersCount !== 'number') followersCount = followersPreview.length;
+  if (typeof followingCount !== 'number') followingCount = followingPreview.length;
+
+  function attrJSON(v){ return JSON.stringify(v).replace(/"/g, '&quot;'); }
+%>
+
+<body id="page"
+      data-me="<%- attrJSON(user || null) %>"
+      data-followers="<%- attrJSON(followersPreview || []) %>"
+      data-following="<%- attrJSON(followingPreview || []) %>"
+      class="bg-zinc-950 text-white min-h-screen flex flex-col">
+
+<!-- HEADER -->
+<header class="bg-zinc-900/80 backdrop-blur border-b border-zinc-800 sticky top-0 z-40">
+  <div class="max-w-6xl mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between relative">
+    <!-- Left: avatar + welcome -->
+    <div class="flex items-center gap-3 min-w-0">
+      <!-- Clickable avatar (opens modal) -->
+      <button type="button"
+              class="group relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 grid place-items-center font-bold shrink-0 js-open-avatar-modal"
+              aria-label="Change avatar">
+        <% if (user && user.avatarUrl) { %>
+          <img src="<%= user.avatarUrl %>" alt="Avatar" class="w-full h-full object-cover">
+        <% } else { %>
+          <span class="text-sm sm:text-base"><%= ((user && (user.username || user.email)) ? (user.username || user.email) : '?').trim().charAt(0).toUpperCase() %></span>
+        <% } %>
+        <span class="absolute inset-0 hidden group-hover:flex items-center justify-center bg-black/50 text-xs font-medium">Change</span>
+      </button>
+
+      <!-- 🔔 Notifications -->
+      <button id="notifBtn" class="relative px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors">
+        <span>🔔</span>
+        <span id="notif-badge"
+              class="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-pink-500 text-[10px] leading-[18px]
+                     text-white text-center font-semibold shadow ring-1 ring-white/20 hidden">0</span>
+      </button>
+
+      <!-- panel -->
+      <div id="notifPanel" class="hidden absolute left-0 top-[100%] mt-2 w-[22rem] max-w-[90vw] bg-zinc-950 border border-zinc-800 rounded-xl shadow-xl">
+        <div class="px-3 py-2 border-b border-zinc-800 flex items-center justify-between">
+          <div class="font-semibold">Notifications</div>
+          <form method="post" action="/notifications/read-all">
+            <button id="notifReadAllBtn" class="text-xs text-zinc-400 hover:text-blue-300">Mark all as read</button>
+          </form>
+        </div>
+        <div id="notifList" class="max-h-[60vh] overflow-y-auto divide-y divide-zinc-900">
+          <div class="px-3 py-4 text-sm text-zinc-500">Loading…</div>
+        </div>
+      </div>
+
+      <div class="leading-tight min-w-0">
+        <p class="text-sm sm:text-base font-semibold truncate" title="<%= user && user.email %>">
+          Welcome, <span class="text-blue-400"><%= (user && (user.username || user.email)) || 'User' %></span>
+        </p>
+        <% if (user && user.role) { %>
+          <span class="mt-0.5 inline-block align-middle px-2 py-0.5 text-[10px] sm:text-xs rounded-full bg-purple-600/20 text-purple-300 border border-purple-700"><%= String(user.role).toUpperCase() %></span>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Right: nav -->
+    <nav class="hidden md:flex items-center gap-2">
+      <!-- Messages button (opens drawer) -->
+      <button id="openChatBtn"
+        class="group relative inline-flex items-center gap-2 px-4 py-2 rounded-xl
+               bg-gradient-to-br from-blue-600 to-indigo-600
+               text-white font-medium shadow-[0_8px_20px_rgba(37,99,235,.35)]
+               hover:shadow-[0_10px_24px_rgba(37,99,235,.45)]
+               hover:from-blue-500 hover:to-indigo-500
+               active:scale-[.98]
+               border border-white/10
+               outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60
+               transition">
+        <svg class="w-5 h-5 opacity-90 transition group-hover:opacity-100" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+                d="M21 12c0 4.418-4.03 8-9 8-1.3 0-2.53-.235-3.64-.664L3 20l1.53-3.06C4.19 15.79 3 14.01 3 12 3 7.582 7.03 4 12 4s9 3.582 9 8Z"/>
+        </svg>
+        <span>Messages</span>
+        <span id="unreadBadge"
+              class="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1
+                     rounded-full bg-pink-500 text-[10px] leading-[18px]
+                     text-white text-center font-semibold shadow
+                     ring-1 ring-white/20 hidden">3</span>
+      </button>
+
+      <a href="/feed" class="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors">Feed</a>
+      <a href="/logout" class="px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 transition-colors">Logout</a>
+    </nav>
+
+    <!-- Mobile menu button -->
+    <button id="menuBtn" class="md:hidden p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700" aria-label="Menu">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Mobile dropdown -->
+  <div id="mobileMenu" class="md:hidden hidden border-t border-zinc-800">
+    <div class="px-3 py-2 flex flex-col gap-2 bg-zinc-900">
+      <button id="openChatBtnMobile"
+              class="px-3 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium">
+        Messages
+      </button>
+      <a href="/feed" class="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700">Feed</a>
+      <a href="/logout" class="px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700">Logout</a>
+    </div>
+  </div>
+</header>
+
+
+
+<div id="avatarModal" class="hidden fixed inset-0 z-50">
+  <div id="avatarOverlay" class="absolute inset-0 bg-black/60"></div>
+  <div class="relative max-w-md mx-auto mt-16 sm:mt-24 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden">
+    <div class="px-4 sm:px-6 py-3 border-b border-zinc-800 flex items-center justify-between">
+      <h3 class="font-semibold">Change Profile Picture</h3>
+      <button id="avatarCloseBtn" class="p-2 rounded-lg hover:bg-zinc-900" aria-label="Close">✕</button>
+    </div>
+    <div class="p-4 sm:p-6 space-y-4">
+      <form method="post" action="/me/avatar" enctype="multipart/form-data" class="space-y-4" id="avatarModalForm">
+        <div class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/60 border border-zinc-800">
+          <div class="w-12 h-12 rounded-full overflow-hidden bg-zinc-800 shrink-0">
+            <% if (user && user.avatarUrl) { %>
+              <img id="avatar-current-modal" src="<%= user.avatarUrl %>" class="w-full h-full object-cover">
+            <% } %>
+          </div>
+          <div class="text-sm text-zinc-400">Current avatar</div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-zinc-300 mb-1.5">Avatar URL</label>
+          <input id="avatar-url-modal" name="avatarUrl" placeholder="https://example.com/avatar.jpg"
+                 class="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 outline-none focus:ring-2 focus:ring-blue-600">
+        </div>
+
+        <div class="text-center text-zinc-500">or</div>
+
+        <div>
+          <label class="block text-sm font-medium text-zinc-300 mb-1.5">Upload Avatar</label>
+          <input id="avatar-file-modal" type="file" name="avatar" accept="image/*"
+                 class="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:bg-zinc-700 file:text-white hover:file:bg-zinc-600">
+          <p class="text-xs text-zinc-500 mt-1">PNG/JPG/WEBP/GIF/AVIF up to 5MB</p>
+        </div>
+
+        <div class="hidden" id="avatar-preview-wrap-modal">
+          <div class="flex items-center gap-3 p-3 rounded-lg bg-zinc-900/40 border border-zinc-800">
+            <div class="w-12 h-12 rounded-full overflow-hidden bg-zinc-800">
+              <img id="avatar-preview-modal" class="w-full h-full object-cover" alt="">
+            </div>
+            <span class="text-sm text-zinc-400">Preview</span>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button type="button" id="avatarCancelBtn" class="px-4 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800">Cancel</button>
+          <button class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 font-medium">Update Avatar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<main class="flex-1">
+  <div class="max-w-6xl mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-6">
+
+    <!-- PROFILE CARD -->
+    <section class="bg-zinc-900 rounded-2xl border border-zinc-800 p-5 sm:p-6">
+      <div class="flex items-start gap-4 sm:gap-6">
+        <button type="button" class="group relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-zinc-800 shrink-0 js-open-avatar-modal" aria-label="Change avatar">
+          <% if (user && user.avatarUrl) { %>
+            <img src="<%= user.avatarUrl %>" alt="Avatar" class="w-full h-full object-cover">
+          <% } else { %>
+            <div class="w-full h-full grid place-items-center text-2xl font-bold text-zinc-400">
+              <%= ((user && (user.username || user.email)) ? (user.username || user.email) : '?').trim().charAt(0).toUpperCase() %>
+            </div>
+          <% } %>
+          <span class="absolute inset-0 hidden group-hover:flex items-center justify-center bg-black/50 text-xs font-medium">Change</span>
+        </button>
+
+        <div class="min-w-0 flex-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <h1 class="text-xl sm:text-2xl font-bold truncate"><%= (user && (user.username || 'User')) || 'User' %></h1>
+            <% if (user && user.role) { %>
+              <span class="px-2 py-0.5 text-xs rounded-full bg-purple-600/20 text-purple-300 border border-purple-700"><%= user.role %></span>
+            <% } %>
+          </div>
+          <p class="text-zinc-400 text-sm break-all mt-1"><%= user && user.email %></p>
+
+          <div class="mt-4 grid grid-cols-3 gap-3">
+            <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3">
+              <p class="text-zinc-400 text-xs">Posts</p>
+              <p class="text-lg font-bold"><%= myPosts.length %></p>
+            </div>
+            <a href="/u/<%= user && user._id %>/followers" class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 hover:border-zinc-700">
+              <p class="text-zinc-400 text-xs">Followers</p>
+              <p class="text-lg font-bold"><%= followersCount %></p>
+            </a>
+            <a href="/u/<%= user && user._id %>/following" class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 hover:border-zinc-700">
+              <p class="text-zinc-400 text-xs">Following</p>
+              <p class="text-lg font-bold"><%= followingCount %></p>
+            </a>
+          </div>
+
+          <div class="mt-4 flex flex-wrap gap-2">
+            <button id="openPostBtn" class="px-3 sm:px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 font-medium">New Post</button>
+            <a href="/u/<%= user && user._id %>" class="px-3 sm:px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">Profile</a>
+          </div>
+        </div>
+      </div>
+    </section>
+    <% if (isAdmin) { %>
+<section class="bg-zinc-900 rounded-2xl border border-zinc-800 p-5 sm:p-6 mt-4">
+  <div class="flex items-center justify-between mb-3">
+    <h3 class="text-lg font-semibold">Recent Users</h3>
+    <a href="/dashboard?limit=100" class="text-sm text-zinc-400 hover:text-blue-300">Show up to 100</a>
+  </div>
+
+  <div class="space-y-3">
+    <% (userList || []).forEach(function(u){ %>
+      <div class="flex items-center gap-4 p-3 rounded-xl bg-zinc-900/60 border border-zinc-800 hover:border-blue-500 transition-all">
+        <div class="flex flex-col items-center w-20">
+          <a href="/u/<%= u._id %>" class="block w-12 h-12 rounded-full overflow-hidden bg-zinc-800 mb-1">
+            <% if (u.avatarUrl) { %>
+              <img src="<%= u.avatarUrl %>" class="w-full h-full object-cover" />
+            <% } else { %>
+              <span class="w-full h-full grid place-items-center text-lg font-bold text-zinc-400"><%= (u.username || u.email || '?').charAt(0).toUpperCase() %></span>
+            <% } %>
+          </a>
+          <span class="text-xs text-zinc-400"><%= u.username || 'User' %></span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex gap-2 items-center mb-1">
+            <% if (u.email) { %>
+              <a href="mailto:<%= u.email %>" class="text-zinc-300 hover:text-blue-300 text-sm font-medium"><%= u.email %></a>
+            <% } else { %>
+              <span class="text-zinc-500 text-sm">—</span>
+            <% } %>
+            <% if (u.googleId) { %>
+              <span class="px-2 py-0.5 text-xs rounded-full bg-emerald-600/20 text-emerald-300 border border-emerald-700">Google</span>
+            <% } else { %>
+              <span class="px-2 py-0.5 text-xs rounded-full bg-zinc-700/30 text-zinc-300 border border-zinc-700">Email/Other</span>
+            <% } %>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-zinc-400">Posts:</span>
+            <span class="font-bold text-blue-400"><%= u.postCount || 0 %></span>
+            <div class="flex-1 h-3 bg-zinc-800 rounded-full overflow-hidden">
+              <div style="width: <%= Math.min(100, (u.postCount || 0) * 10) %>%;" class="h-full bg-gradient-to-r from-blue-500 to-indigo-600"></div>
+            </div>
+          </div>
+        </div>
+        <div class="flex flex-col items-end min-w-[120px]">
+          <span class="text-xs text-zinc-400 mb-1">Joined</span>
+          <span class="text-xs text-zinc-300"><%= u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—' %></span>
+          <% if (isAdmin && String(u._id) !== String(user._id)) { %>
+            <form method="post" action="/admin/users/<%= u._id %>/delete" onsubmit="return confirm('Are you sure you want to delete this user? This action cannot be undone.');">
+              <button type="submit" class="mt-2 px-2 py-1 rounded bg-red-700 hover:bg-red-800 text-xs text-white">Delete</button>
+            </form>
+          <% } %>
+        </div>
+      </div>
+    <% }); %>
+    <% if (!(userList || []).length) { %>
+      <div class="py-4 text-zinc-500 text-center">No users yet.</div>
+    <% } %>
+  </div>
+</section>
+
+<section class="bg-zinc-900 rounded-2xl border border-zinc-800 p-5 sm:p-6 mt-4">
+  <div class="flex items-center justify-between mb-3">
+    <h3 class="text-lg font-semibold">Recent Google Users</h3>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead class="text-xs uppercase text-zinc-400 border-b border-zinc-800">
+        <tr>
+          <th class="text-left py-2 pr-4">Name</th>
+          <th class="text-left py-2 pr-4">Email</th>
+          <th class="text-left py-2 pr-4">Google</th>
+          <th class="text-left py-2 pr-4">Posts</th>
+          <th class="text-left py-2 pr-4">Joined</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-zinc-900">
+        <% (googleUserList || []).forEach(function(u){ %>
+          <tr>
+            <td class="py-2 pr-4">
+              <a href="/u/<%= u._id %>" class="hover:text-blue-300">
+                <%= u.username || '(no username)' %>
+              </a>
+            </td>
+            <td class="py-2 pr-4 break-all">
+              <% if (u.email) { %>
+                <a href="mailto:<%= u.email %>" class="text-zinc-300 hover:text-blue-300"><%= u.email %></a>
+              <% } else { %>
+                <span class="text-zinc-500">—</span>
+              <% } %>
+            </td>
+            <td class="py-2 pr-4">
+              <code class="text-zinc-300"><%= (u.googleId && String(u.googleId).slice(0,6) + '…') || '—' %></code>
+            </td>
+            <td class="py-2 pr-4 text-blue-300 font-bold"><%= u.postCount || 0 %></td>
+            <td class="py-2 pr-4 text-zinc-400"><%= u.createdAt ? new Date(u.createdAt).toLocaleString() : '—' %></td>
+          </tr>
+        <% }); %>
+
+        <% if (!(googleUserList || []).length) { %>
+          <tr><td colspan="4" class="py-4 text-zinc-500">No Google users yet.</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</section>
+<% } %>
+
+
+    <!-- RECENT POSTS -->
+    <section class="bg-zinc-900 rounded-2xl border border-zinc-800 overflow-hidden">
+      <div class="px-4 sm:px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
+        <h2 class="text-lg sm:text-xl font-bold">Recent Posts</h2>
+        <div class="flex items-center gap-2">
+          <input id="postSearch" type="text" placeholder="Search titles..." class="hidden sm:block bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 outline-none focus:border-zinc-600 text-sm">
+          <button id="openPostBtn2" class="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-sm">Create</button>
+        </div>
+      </div>
+
+      <% if (!myPosts.length) { %>
+        <div class="p-8 text-center text-zinc-400">No posts yet. Create your first post.</div>
+      <% } else { %>
+        <ul id="postList" class="divide-y divide-zinc-800">
+          <% myPosts.slice(0, 12).forEach(function(p){ var likedByMe = ((p.likes || []).some(function(id){ return String(id) === String(user && user._id); })); %>
+          <li class="p-4 sm:p-5 hover:bg-zinc-900/60 transition">
+            <div class="flex items-start gap-4">
+              <div class="w-24 h-16 rounded-lg overflow-hidden bg-zinc-800 shrink-0 hidden xs:block">
+                <% if (p.imageUrl) { %><img src="<%= p.imageUrl %>" alt="" class="w-full h-full object-cover"><% } %>
+              </div>
+              <div class="min-w-0 flex-1">
+                <h3 class="font-semibold leading-tight truncate"><%= p.title || 'Untitled' %></h3>
+                <p class="text-xs text-zinc-500 mt-0.5"><%= new Date(p.createdAt).toLocaleString() %></p>
+                <div class="mt-3 flex flex-wrap items-center gap-2">
+                  <form method="post" action="/posts/<%= p._id %>/<%= likedByMe ? 'unlike' : 'like' %>">
+                    <button class="px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1 <%= likedByMe ? 'bg-pink-600 hover:bg-pink-700' : 'bg-zinc-800 hover:bg-zinc-700 border border-zinc-700' %>">
+                      <span><%= likedByMe ? '❤️' : '🤍' %></span>
+                      <span><%= likedByMe ? 'Loved' : 'Love' %> (<%= (p.likes || []).length %>)</span>
+                    </button>
+                  </form>
+                  <a href="/posts/<%= p._id %>" class="px-3 py-1.5 rounded-md text-sm bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">Open</a>
+                  <form method="post" action="/posts/<%= p._id %>/delete" class="js-confirm-delete">
+                    <button class="px-3 py-1.5 rounded-md text-sm bg-red-600 hover:bg-red-700">Delete</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </li>
+          <% }); %>
+        </ul>
+      <% } %>
+    </section>
+
+    <!-- PEOPLE (compact) -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+      <div class="bg-zinc-900 rounded-2xl border border-zinc-800 overflow-hidden">
+        <div class="px-4 sm:px-6 py-3 border-b border-zinc-800 flex items-center justify-between">
+          <h3 class="text-lg font-semibold">Followers <span class="text-zinc-500">(<%= followersCount %>)</span></h3>
+          <a href="/u/<%= user && user._id %>/followers" class="text-sm text-zinc-400 hover:text-blue-300">See all →</a>
+        </div>
+        <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <% (followersPreview || []).slice(0,6).forEach(function(f){ %>
+          <a href="/u/<%= f._id %>" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700">
+            <div class="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 grid place-items-center">
+              <% if (f.avatarUrl) { %><img src="<%= f.avatarUrl %>" class="w-full h-full object-cover"><% } else { %>
+                <span class="text-sm font-bold"><%= (f.username || f.email || '?').charAt(0).toUpperCase() %></span>
+              <% } %>
+            </div>
+            <div class="min-w-0">
+              <p class="text-sm font-medium truncate"><%= f.username || f.email %></p>
+              <p class="text-xs text-zinc-500 truncate"><%= f.email %></p>
+            </div>
+          </a>
+          <% }); %>
+          <% if (!(followersPreview || []).length) { %><p class="text-sm text-zinc-500">No followers yet.</p><% } %>
+        </div>
+      </div>
+
+      <div class="bg-zinc-900 rounded-2xl border border-zinc-800 overflow-hidden">
+        <div class="px-4 sm:px-6 py-3 border-b border-zinc-800 flex items-center justify-between">
+          <h3 class="text-lg font-semibold">Following <span class="text-zinc-500">(<%= followingCount %>)</span></h3>
+          <a href="/u/<%= user && user._id %>/following" class="text-sm text-zinc-400 hover:text-blue-300">See all →</a>
+        </div>
+        <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <% (followingPreview || []).slice(0,6).forEach(function(f){ %>
+          <a href="/u/<%= f._id %>" class="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700">
+            <div class="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 grid place-items-center">
+              <% if (f.avatarUrl) { %><img src="<%= f.avatarUrl %>" class="w-full h-full object-cover"><% } else { %>
+                <span class="text-sm font-bold"><%= (f.username || f.email || '?').charAt(0).toUpperCase() %></span>
+              <% } %>
+            </div>
+            <div class="min-w-0">
+              <p class="text-sm font-medium truncate"><%= f.username || f.email %></p>
+              <p class="text-xs text-zinc-500 truncate"><%= f.email %></p>
+            </div>
+          </a>
+          <% }); %>
+          <% if (!(followingPreview || []).length) { %><p class="text-sm text-zinc-500">You’re not following anyone yet.</p><% } %>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer class="border-t border-zinc-900 mt-10">
+  <div class="max-w-6xl mx-auto px-3 sm:px-4 py-5 text-xs sm:text-sm text-zinc-500 text-center">
+    © <%= new Date().getFullYear() %> Mosaic. All rights reserved.
+  </div>
+</footer>
+
+<!-- CREATE POST MODAL -->
+<div id="postModal" class="hidden fixed inset-0 z-50">
+  <div id="postOverlay" class="absolute inset-0 bg-black/60"></div>
+  <div class="relative max-w-xl mx-auto mt-16 sm:mt-24 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden">
+    <div class="px-4 sm:px-6 py-3 border-b border-zinc-800 flex items-center justify-between">
+      <h3 class="font-semibold">Create Post</h3>
+      <button id="postCloseBtn" class="p-2 rounded-lg hover:bg-zinc-900" aria-label="Close">✕</button>
+    </div>
+    <div class="p-4 sm:p-6 space-y-4">
+      <% if (typeof error !== 'undefined') { %>
+        <div class="p-3 rounded-lg bg-red-900/20 border border-red-800 text-red-400 text-sm"><%= error %></div>
+      <% } %>
+      <form method="post" action="/posts" enctype="multipart/form-data" class="space-y-4" id="createPostForm">
+        <div>
+          <label class="block text-sm mb-1.5 text-zinc-300">Title</label>
+          <input name="title" placeholder="e.g. Beautiful sunset" class="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 outline-none focus:ring-2 focus:ring-blue-600" required />
+        </div>
+        <div>
+          <label class="block text-sm mb-1.5 text-zinc-300">Image URL</label>
+          <input id="post-url" name="imageUrl" placeholder="https://images.example.com/photo.jpg" class="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 outline-none focus:ring-2 focus:ring-blue-600" />
+        </div>
+        <div class="text-center text-zinc-500">or</div>
+        <div>
+          <label class="block text-sm mb-1.5 text-zinc-300">Upload Image</label>
+          <input id="post-file" type="file" name="image" accept="image/*" class="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:bg-zinc-700 file:text-white hover:file:bg-zinc-600" />
+          <p class="text-xs text-zinc-500 mt-1">Max 5MB. JPG, PNG, WEBP, GIF, AVIF</p>
+        </div>
+        <div class="rounded-xl border border-zinc-800 overflow-hidden hidden" id="post-preview-wrap">
+          <div class="aspect-[16/9] bg-zinc-900"><img id="post-preview" class="w-full h-full object-cover" alt=""></div>
+          <div class="px-3 py-2 text-xs text-zinc-500 border-t border-zinc-800 bg-zinc-900/60">Post preview</div>
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button type="button" id="postCancelBtn" class="px-4 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800">Cancel</button>
+          <button class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 font-medium">Publish</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== CHAT DRAWER ===================== -->
+<div id="chatDrawer" class="fixed inset-0 z-[60] hidden">
+  <div id="chatOverlay" class="absolute inset-0 bg-black/60"></div>
+  <div class="absolute right-0 top-0 h-full w-full max-w-3xl bg-zinc-950 border-l border-zinc-800 grid grid-cols-12">
+    <!-- left: chats & mutuals -->
+    <div class="col-span-5 border-r border-zinc-800 flex flex-col min-w-0">
+      <div class="p-3 sm:p-4 flex items-center justify-between">
+        <h3 class="font-semibold">Messages</h3>
+        <button id="chatCloseBtn" class="p-2 rounded-lg hover:bg-zinc-900" aria-label="Close">✕</button>
+      </div>
+      <div class="px-3 sm:px-4 pb-3">
+        <input id="chatSearch" type="text" placeholder="Search chats or people..."
+          class="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 outline-none focus:ring-2 focus:ring-blue-600 text-sm">
+      </div>
+      <div class="px-3 sm:px-4 pb-2 text-xs uppercase tracking-wide text-zinc-500">Your Chats</div>
+      <div id="chatList" class="flex-1 overflow-y-auto divide-y divide-zinc-900"></div>
+      <div class="px-3 sm:px-4 pt-4 pb-2 text-xs uppercase tracking-wide text-zinc-500 border-t border-zinc-800">Start New (Mutuals)</div>
+      <div id="mutualList" class="max-h-48 overflow-y-auto px-3 sm:px-4 pb-4 space-y-2"></div>
+    </div>
+
+    <!-- right: thread -->
+    <div class="col-span-7 flex flex-col min-w-0">
+      <div id="threadHeader" class="p-3 sm:p-4 border-b border-zinc-800 flex items-center gap-3">
+        <div id="threadAvatar" class="w-8 h-8 rounded-lg overflow-hidden bg-zinc-800"></div>
+        <div class="min-w-0">
+          <div id="threadName" class="font-medium truncate">Select a chat</div>
+          <div id="threadHint" class="text-xs text-zinc-500 truncate">No conversation selected</div>
+        </div>
+      </div>
+      <div id="threadBody" class="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2 bg-zinc-950"></div>
+      <form id="threadForm" class="p-3 sm:p-4 border-t border-zinc-800 flex gap-2">
+        <input id="threadInput" autocomplete="off" placeholder="Type a message..." maxlength="2000"
+               class="flex-1 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 outline-none focus:ring-2 focus:ring-blue-600">
+        <button class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 font-medium">Send</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- External scripts only -->
+<script src="/scripts/dashboard.js" defer></script>
+<script src="/scripts/chat.js" defer></script>
+</body>
+</html>
